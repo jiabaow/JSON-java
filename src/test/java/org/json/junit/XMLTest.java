@@ -1223,6 +1223,51 @@ public class XMLTest {
     }
 
     @Test
+    public void testSimpleIndentJsonObjectWithPath() {
+        String str = "{    \"employee\": {  \n" +
+                "        \"name\":       \"sonoo\",   \n" +
+                "        \"married\":    true  \n" +
+                "    }}";
+        JSONObject jsonObject = new JSONObject(str);
+        String actualXml = XML.toString(jsonObject, 2);
+        JSONPointer path = new JSONPointer("/employee/married");
+        JSONObject actualObject = XML.toJSONObject(new StringReader(actualXml), path);
+        String xml = "<married>true</married>\n";
+        JSONObject expectedJsonObject = XML.toJSONObject(xml);
+            assertTrue(expectedJsonObject.similar(actualObject));
+    }
+
+    @Test
+    public void testIndentJsonObjectWithPath() {
+        String str = "{    \"employee\": {  \n" +
+                "        \"name\":       \"sonoo\",   \n" +
+                "        \"married\":    true,  \n" +
+                "        \"salary\":      56000   \n" +
+                "    }}";
+        JSONObject jsonObject = new JSONObject(str);
+        String actualXml = XML.toString(jsonObject, "Test",2);
+        JSONPointer path = new JSONPointer("/employee/married");
+        JSONObject actualObject = XML.toJSONObject(new StringReader(actualXml), path);
+        String xml = "<married>true</married>\n";
+        JSONObject expectedJsonObject = XML.toJSONObject(xml);
+        assertTrue(expectedJsonObject.similar(actualObject));
+    }
+
+    @Test
+    public void testSimpleJsonObjectWithFlatPath() {
+        String str = "{    \"employee\": {  \n" +
+                "        \"name\":       \"sonoo\",   \n" +
+                "    }}";
+        JSONObject jsonObject = new JSONObject(str);
+        String actualXml = XML.toString(jsonObject, 2);
+        JSONPointer path = new JSONPointer("/employee");
+        JSONObject actualObject = XML.toJSONObject(new StringReader(actualXml), path);
+        String xml = "<name>sonoo</name>\n";
+        JSONObject expectedJsonObject = XML.toJSONObject(xml);
+        assertTrue(expectedJsonObject.similar(actualObject));
+    }
+
+    @Test
     public void testIndentSimpleJsonArray(){
         String str = "[  \n" +
                 "    {\"name\":\"Ram\", \"email\":\"Ram@gmail.com\"},  \n" +
