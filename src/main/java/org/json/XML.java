@@ -472,6 +472,28 @@ public class XML {
         String tagName;
         Object token;
         XMLXsiTypeConverter<?> xmlXsiTypeConverter;
+        String path0 = path[0];
+
+        int index = -1;
+        try {
+            index = Integer.parseInt(path[0]);
+            if (index == 0) {
+                path = Arrays.copyOfRange(path, 1, path.length);
+            } else {
+                index -= 1;
+                if (context.isEmpty()) {
+                    x.skipPast("/" + name + ">" + "<" + name + ">" + "<");
+                }
+                //x.skipPast(name);
+                //
+                if (index == 0) {
+                    path = Arrays.copyOfRange(path, 1, path.length);
+                } else {
+                    path[0] = Integer.toString(index);
+                }
+            }
+        } catch (NumberFormatException e) {
+        }
 
         // Test for and skip past these forms:
         // <!-- ... -->
@@ -548,8 +570,11 @@ public class XML {
 
         } else {
             tagName = (String) token;
-            if (tagName.equals(path[0])) {
+            if (tagName.equals(path0)) {
                 path = Arrays.copyOfRange(path, 1, path.length);
+                if (path.length > 0) {
+                    path0 = path[0];
+                }
             }
             token = null;
             jsonObject = new JSONObject();
@@ -647,7 +672,14 @@ public class XML {
                             }
 
                             if (parseResult) {
-                                if (path.length == 0) {
+                                boolean isIndex = false;
+                                try {
+                                    Integer.parseInt(path0);
+                                    isIndex = true;
+                                } catch (NumberFormatException e) {
+                                    isIndex = false;
+                                }
+                                if (path.length == 0 || ( isIndex && path[0].equals(path0))) {
                                     if (config.getForceList().contains(tagName)) {
                                         // Force the value to be an array
                                         if (jsonObject.length() == 0) {
@@ -844,15 +876,15 @@ public class XML {
     }
 
     public static JSONObject toJSONObject(Reader reader, JSONPointer path) throws JSONException {
-        String[] path_array = path.toString().split("/");
-        path_array = Arrays.copyOfRange(path_array, 1, path_array.length); // first element is empty
+        String[] pathArray = path.toString().split("/");
+        pathArray = Arrays.copyOfRange(pathArray, 1, pathArray.length); // first element is empty
         JSONObject jo = new JSONObject();
         XMLTokener x = new XMLTokener(reader);
         while (x.more()) {
             x.skipPast("<");
             if (x.more()) {
                 try {
-                    parse(x, path_array, jo, null, XMLParserConfiguration.ORIGINAL, 0);
+                    parse(x, pathArray, jo, null, XMLParserConfiguration.ORIGINAL, 0);
                     if (!jo.isEmpty()) {
                         break;
                     }
