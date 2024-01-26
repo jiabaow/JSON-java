@@ -641,13 +641,12 @@ public class XML {
                             }
                             boolean parseResult;
                             if (path.length == 0) {
-                                parseResult = parse(x, context, tagName, config, 0); //tagName
+                                parseResult = parse(x, jsonObject, tagName, config, 0); //tagName
                             } else {
                                 parseResult = parse(x, path, jsonObject, tagName, config, currentNestingDepth + 1);
                             }
 
                             if (parseResult) {
-                                // is path.length == 0
                                 if (path.length == 0) {
                                     if (config.getForceList().contains(tagName)) {
                                         // Force the value to be an array
@@ -849,11 +848,14 @@ public class XML {
         path_array = Arrays.copyOfRange(path_array, 1, path_array.length); // first element is empty
         JSONObject jo = new JSONObject();
         XMLTokener x = new XMLTokener(reader);
-        while (jo.isEmpty()) {
+        while (x.more()) {
             x.skipPast("<");
             if (x.more()) {
                 try {
                     parse(x, path_array, jo, null, XMLParserConfiguration.ORIGINAL, 0);
+                    if (!jo.isEmpty()) {
+                        break;
+                    }
                 } catch (JSONException e) {
                     return new JSONObject();
                 }
