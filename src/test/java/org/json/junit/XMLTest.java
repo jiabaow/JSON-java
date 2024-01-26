@@ -1234,7 +1234,7 @@ public class XMLTest {
         JSONObject actualObject = XML.toJSONObject(new StringReader(actualXml), path);
         String xml = "<married>true</married>\n";
         JSONObject expectedJsonObject = XML.toJSONObject(xml);
-            assertTrue(expectedJsonObject.similar(actualObject));
+        assertTrue(expectedJsonObject.similar(actualObject));
     }
 
     @Test
@@ -1254,7 +1254,7 @@ public class XMLTest {
     }
 
     @Test
-    public void testSimpleJsonObjectWithFlatPath() {
+    public void testSimpleJsonObjectWithRootPath() {
         String str = "{    \"employee\": {  \n" +
                 "        \"name\":       \"sonoo\",   \n" +
                 "    }}";
@@ -1262,8 +1262,23 @@ public class XMLTest {
         String actualXml = XML.toString(jsonObject, 2);
         JSONPointer path = new JSONPointer("/employee");
         JSONObject actualObject = XML.toJSONObject(new StringReader(actualXml), path);
-        String xml = "<name>sonoo</name>\n";
+        String xml = "<employee>\n" +
+                "  <name>sonoo</name>\n" +
+                "</employee>\n";
         JSONObject expectedJsonObject = XML.toJSONObject(xml);
+        assertTrue(expectedJsonObject.similar(actualObject));
+    }
+
+    @Test
+    public void testJsonObjectWhenPathNotFound() {
+        String str = "{    \"employee\": {  \n" +
+                "        \"name\":       \"sonoo\",   \n" +
+                "    }}";
+        JSONObject jsonObject = new JSONObject(str);
+        String actualXml = XML.toString(jsonObject, 2);
+        JSONPointer path = new JSONPointer("/empty");
+        JSONObject actualObject = XML.toJSONObject(new StringReader(actualXml), path);
+        JSONObject expectedJsonObject = new JSONObject();
         assertTrue(expectedJsonObject.similar(actualObject));
     }
 
