@@ -474,6 +474,7 @@ public class XML {
         XMLXsiTypeConverter<?> xmlXsiTypeConverter;
         String path0 = path[0];
 
+        // check if we encounter an index in path
         int index = -1;
         try {
             index = Integer.parseInt(path[0]);
@@ -481,7 +482,7 @@ public class XML {
                 path = Arrays.copyOfRange(path, 1, path.length);
             } else {
                 index -= 1;
-                if (context.isEmpty()) {
+                if (context.isEmpty()) { // skip to the next element
                     x.skipPast("/" + name + ">" + "<" + name + ">" + "<");
                 }
                 if (index == 0) {
@@ -665,7 +666,7 @@ public class XML {
                             boolean parseResult;
                             if (path.length == 0) {
                                 parseResult = parse(x, jsonObject, tagName, config, 0);
-                            } else {
+                            } else { // if we haven't found the sub object, continue looking for it
                                 parseResult = parse(x, path, jsonObject, tagName, config, currentNestingDepth + 1);
                             }
 
@@ -698,7 +699,7 @@ public class XML {
                                             context.accumulate(tagName, jsonObject);
                                         }
                                     }
-                                } else {
+                                } else { // copy jsonObject to context without adding tag
                                     for (Map.Entry<String, Object> entry: jsonObject.entrySet()) {
                                         context.put(entry.getKey(), entry.getValue());
                                     }
