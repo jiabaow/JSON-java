@@ -484,8 +484,6 @@ public class XML {
                 if (context.isEmpty()) {
                     x.skipPast("/" + name + ">" + "<" + name + ">" + "<");
                 }
-                //x.skipPast(name);
-                //
                 if (index == 0) {
                     path = Arrays.copyOfRange(path, 1, path.length);
                 } else {
@@ -666,7 +664,7 @@ public class XML {
                             }
                             boolean parseResult;
                             if (path.length == 0) {
-                                parseResult = parse(x, jsonObject, tagName, config, 0); //tagName
+                                parseResult = parse(x, jsonObject, tagName, config, 0);
                             } else {
                                 parseResult = parse(x, path, jsonObject, tagName, config, currentNestingDepth + 1);
                             }
@@ -1177,7 +1175,8 @@ public class XML {
      * @param reader The XML source reader.
      * @param path Given path to a sub-object
      * @return The sub JSONObject led by the path, from the structured data from the XML string.
-            * Or an empty JSONObject if path or XML is invalid
+            * Or an empty JSONObject if path is invalid
+     * @throws JSONException Thrown if there is an errors while parsing the string
      */
     public static JSONObject toJSONObject(Reader reader, JSONPointer path) throws JSONException {
         String[] pathArray = path.toString().split("/");
@@ -1187,13 +1186,9 @@ public class XML {
         while (x.more()) {
             x.skipPast("<");
             if (x.more()) {
-                try {
-                    parse(x, pathArray, jo, null, XMLParserConfiguration.ORIGINAL, 0);
-                    if (!jo.isEmpty()) {
-                        break;
-                    }
-                } catch (JSONException e) {
-                    return new JSONObject();
+                parse(x, pathArray, jo, null, XMLParserConfiguration.ORIGINAL, 0);
+                if (!jo.isEmpty()) {
+                    break;
                 }
             }
         }
@@ -1205,8 +1200,8 @@ public class XML {
      * @param path Given path to a sub-object
      * @param replacement The replacement JSONObject
      * @return JSONObject with sub object replaced by the replacement.
-     * Or an empty JSONObject if XML is invalid
      * Or the original object if path not found
+     * @throws JSONException Thrown if there is an errors while parsing the string
      */
     public static JSONObject toJSONObject(Reader reader, JSONPointer path, JSONObject replacement) throws JSONException {
         String[] pathArray = path.toString().split("/");
@@ -1216,11 +1211,7 @@ public class XML {
         while (x.more()) {
             x.skipPast("<");
             if (x.more()) {
-                try {
-                    parse(x, pathArray, jo, null, XMLParserConfiguration.ORIGINAL, 0, replacement);
-                } catch (JSONException e) {
-                    return new JSONObject();
-                }
+                parse(x, pathArray, jo, null, XMLParserConfiguration.ORIGINAL, 0, replacement);
             }
         }
         return jo;
