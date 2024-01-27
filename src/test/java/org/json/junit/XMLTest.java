@@ -1238,6 +1238,23 @@ public class XMLTest {
     }
 
     @Test
+    public void testSimpleJsonObjectWithReplacement() {
+        String str = "{\"employee\": {  \n" +
+                "    \"married\":    true  \n" +
+                "}}";
+        JSONObject jsonObject = new JSONObject(str);
+        String actualXml = XML.toString(jsonObject);
+        JSONPointer path = new JSONPointer("/employee/married");
+        JSONObject replacement = XML.toJSONObject("<married>false</married>\n");
+        JSONObject actualObject = XML.toJSONObject(new StringReader(actualXml), path, replacement);
+        String xml = "<employee>\n" +
+                "  <married>false</married>\n" +
+                "</employee>\n";
+        JSONObject expectedJsonObject = XML.toJSONObject(xml);
+            assertTrue(expectedJsonObject.similar(actualObject));
+    }
+
+    @Test
     public void testIndentJsonObjectWithPath() {
         String str = "{    \"employee\": {  \n" +
                 "        \"name\":       \"sonoo\",   \n" +
@@ -1249,6 +1266,27 @@ public class XMLTest {
         JSONPointer path = new JSONPointer("/employee/married");
         JSONObject actualObject = XML.toJSONObject(new StringReader(actualXml), path);
         String xml = "<married>true</married>\n";
+        JSONObject expectedJsonObject = XML.toJSONObject(xml);
+        assertTrue(expectedJsonObject.similar(actualObject));
+    }
+
+    @Test
+    public void testIndentJsonObjectWithReplacement() {
+        String str = "{    \"employee\": {  \n" +
+                "        \"name\":       \"sonoo\",   \n" +
+                "        \"married\":    true,  \n" +
+                "        \"salary\":      56000   \n" +
+                "    }}";
+        JSONObject jsonObject = new JSONObject(str);
+        String actualXml = XML.toString(jsonObject, 2);
+        JSONPointer path = new JSONPointer("/employee/married");
+        JSONObject replacement = XML.toJSONObject("<married>false</married>\n");
+        JSONObject actualObject = XML.toJSONObject(new StringReader(actualXml), path, replacement);
+        String xml = "  <employee>\n" +
+                "    <name>sonoo</name>\n" +
+                "    <married>false</married>\n" +
+                "    <salary>56000</salary>\n" +
+                "  </employee>\n";
         JSONObject expectedJsonObject = XML.toJSONObject(xml);
         assertTrue(expectedJsonObject.similar(actualObject));
     }
@@ -1268,6 +1306,33 @@ public class XMLTest {
         JSONPointer path = new JSONPointer("/employee/married");
         JSONObject actualObject = XML.toJSONObject(new StringReader(actualXml), path);
         String xml = "<married>true</married>\n";
+        JSONObject expectedJsonObject = XML.toJSONObject(xml);
+        assertTrue(expectedJsonObject.similar(actualObject));
+    }
+
+    @Test
+    public void testParallelJsonObjectWithReplacement() {
+        String str = "{\"employee\": {  \n" +
+                "   \"name\":       \"sonoo\",   \n" +
+                "   \"married\":    true,  \n" +
+                "   \"salary\":      56000   \n" +
+                "}," +
+                "\"contact\": {  \n" +
+                "   \"nick\":       \"Crista\" \n" +
+                "}}";
+        JSONObject jsonObject = new JSONObject(str);
+        String actualXml = XML.toString(jsonObject);
+        JSONPointer path = new JSONPointer("/employee/married");
+        JSONObject replacement = XML.toJSONObject("<married>false</married>\n");
+        JSONObject actualObject = XML.toJSONObject(new StringReader(actualXml), path, replacement);
+        String xml = "<employee>\n" +
+                    "  <name>sonoo</name>\n" +
+                    "  <married>false</married>\n" +
+                    "  <salary>56000</salary>\n" +
+                    "</employee>\n" +
+                    "<contact>\n" +
+                    "  <nick>Crista</nick>" +
+                    "</contact>";
         JSONObject expectedJsonObject = XML.toJSONObject(xml);
         assertTrue(expectedJsonObject.similar(actualObject));
     }
@@ -1342,6 +1407,27 @@ public class XMLTest {
     }
 
     @Test
+    public void testSimpleJsonArrayWithRootReplacement(){
+        String str = "[\n" +
+                "  {\"name\":\"Ram\"},  \n" +
+                "  {\"name\":\"Bob\"}  \n" +
+                "]  ";
+        JSONArray jsonObject = new JSONArray(str);
+        String actual = XML.toString(jsonObject);
+        JSONPointer path = new JSONPointer("/array");
+        JSONObject replacement = XML.toJSONObject("<array><name>Alice</name></array>\n");
+        JSONObject actualJsonObject = XML.toJSONObject(new StringReader(actual), path, replacement);
+        String expected = "<array>\n" +
+                "  <name>Alice</name>\n" +
+                "</array>\n" +
+                "<array>\n" +
+                "  <name>Bob</name> \n" +
+                "</array>";
+        JSONObject expectedJsonObject = XML.toJSONObject(expected);
+        assertTrue(expectedJsonObject.similar(actualJsonObject));
+    }
+
+    @Test
     public void testSimpleJsonArrayWithIndex0Path(){
         String str = "[  \n" +
                 "    {\"name\":\"Ram\"},  \n" +
@@ -1354,6 +1440,27 @@ public class XMLTest {
         String expected = "<array>\n" +
                 "  <name>Ram</name>\n" +
                 "</array>\n";
+        JSONObject expectedJsonObject = XML.toJSONObject(expected);
+        assertTrue(expectedJsonObject.similar(actualJsonObject));
+    }
+
+    @Test
+    public void testSimpleJsonArrayWithIndex0Replacement(){
+        String str = "[\n" +
+                "  {\"name\":\"Ram\"},  \n" +
+                "  {\"name\":\"Bob\"}  \n" +
+                "]  ";
+        JSONArray jsonObject = new JSONArray(str);
+        String actual = XML.toString(jsonObject);
+        JSONPointer path = new JSONPointer("/array/0");
+        JSONObject replacement = XML.toJSONObject("<array><name>Alice</name></array>\n");
+        JSONObject actualJsonObject = XML.toJSONObject(new StringReader(actual), path, replacement);
+        String expected = "<array>\n" +
+                "  <name>Alice</name>\n" +
+                "</array>\n" +
+                "<array>\n" +
+                "  <name>Bob</name> \n" +
+                "</array>";
         JSONObject expectedJsonObject = XML.toJSONObject(expected);
         assertTrue(expectedJsonObject.similar(actualJsonObject));
     }
@@ -1376,6 +1483,52 @@ public class XMLTest {
     }
 
     @Test
+    public void testSimpleJsonArrayWithIndex1Replacement(){
+        String str = "[\n" +
+                "  {\"name\":\"Ram\"},  \n" +
+                "  {\"name\":\"Bob\"}  \n" +
+                "]  ";
+        JSONArray jsonObject = new JSONArray(str);
+        String actual = XML.toString(jsonObject);
+        JSONPointer path = new JSONPointer("/array/1");
+        JSONObject replacement = XML.toJSONObject("<array><name>Alice</name></array>\n");
+        JSONObject actualJsonObject = XML.toJSONObject(new StringReader(actual), path, replacement);
+        String expected = "<array>\n" +
+                "  <name>Ram</name>\n" +
+                "</array>\n" +
+                "<array>\n" +
+                "  <name>Alice</name> \n" +
+                "</array>";
+        JSONObject expectedJsonObject = XML.toJSONObject(expected);
+        assertTrue(expectedJsonObject.similar(actualJsonObject));
+    }
+
+    @Test
+    public void testSimpleJsonArrayWithIndex2Replacement(){
+        String str = "[\n" +
+                "  {\"name\":\"Ram\"},  \n" +
+                "  {\"name\":\"Bob\"},  \n" +
+                "  {\"name\":\"Tom\"}  \n" +
+                "]  ";
+        JSONArray jsonObject = new JSONArray(str);
+        String actual = XML.toString(jsonObject);
+        JSONPointer path = new JSONPointer("/array/2");
+        JSONObject replacement = XML.toJSONObject("<array><name>Alice</name></array>\n");
+        JSONObject actualJsonObject = XML.toJSONObject(new StringReader(actual), path, replacement);
+        String expected = "<array>\n" +
+                "  <name>Ram</name>\n" +
+                "</array>\n" +
+                "<array>\n" +
+                "  <name>Bob</name>\n" +
+                "</array>\n" +
+                "<array>\n" +
+                "  <name>Alice</name> \n" +
+                "</array>";
+        JSONObject expectedJsonObject = XML.toJSONObject(expected);
+        assertTrue(expectedJsonObject.similar(actualJsonObject));
+    }
+
+    @Test
     public void testSimpleJsonArrayWithOutOfBoundIndexPath(){
         String str = "[\n" +
                 "  {\"name\":\"Ram\"},  \n" +
@@ -1386,6 +1539,27 @@ public class XMLTest {
         JSONPointer path = new JSONPointer("/array/2");
         JSONObject actualJsonObject = XML.toJSONObject(new StringReader(actual), path);
         JSONObject expectedJsonObject = new JSONObject();
+        assertTrue(expectedJsonObject.similar(actualJsonObject));
+    }
+
+    @Test
+    public void testSimpleJsonArrayWithOutOfBoundIndexReplacement(){
+        String str = "[\n" +
+                "  {\"name\":\"Ram\"},  \n" +
+                "  {\"name\":\"Bob\"}  \n" +
+                "]  ";
+        JSONArray jsonObject = new JSONArray(str);
+        String actual = XML.toString(jsonObject);
+        JSONPointer path = new JSONPointer("/array/2");
+        JSONObject replacement = XML.toJSONObject("<array><name>Alice</name></array>\n");
+        JSONObject actualJsonObject = XML.toJSONObject(new StringReader(actual), path, replacement);
+        String expected = "<array>\n" +
+                "  <name>Ram</name>\n" +
+                "</array>\n" +
+                "<array>\n" +
+                "  <name>Bob</name>\n" +
+                "</array>\n";
+        JSONObject expectedJsonObject = XML.toJSONObject(expected);
         assertTrue(expectedJsonObject.similar(actualJsonObject));
     }
 

@@ -6,8 +6,6 @@ Public Domain.
 
 import java.io.Reader;
 import java.io.StringReader;
-import java.math.BigDecimal;
-import java.math.BigInteger;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.Map;
@@ -452,6 +450,8 @@ public class XML {
      *
      * @param x
      *            The XMLTokener containing the source string.
+     * @param path
+     *            The path to a sub-object
      * @param context
      *            The JSONObject that will include the new material.
      * @param name
@@ -717,6 +717,304 @@ public class XML {
         }
     }
 
+
+    /**
+     * Scan the content following the named tag, attaching it to the context.
+     *
+     * @param x
+     *            The XMLTokener containing the source string.
+     * @param path
+     *            The path to the sub-object to be replaced
+     * @param context
+     *            The JSONObject that will include the new material.
+     * @param name
+     *            The tag name.
+     * @param config
+     *            The XML parser configuration.
+     * @param currentNestingDepth
+     *            The current nesting depth.
+     * @param replacement
+     *            The given replacement json object
+     * @return true if the close tag is processed.
+     * @throws JSONException Thrown if any parsing error occurs.
+     */
+    private static boolean parse(XMLTokener x, String[] path, JSONObject context, String name, XMLParserConfiguration config, int currentNestingDepth, JSONObject replacement)
+            throws JSONException {
+        char c;
+        int i;
+        JSONObject jsonObject = null;
+        String string;
+        String tagName;
+        Object token;
+        XMLXsiTypeConverter<?> xmlXsiTypeConverter;
+        String path0 = path[0];
+
+        int index = -1;
+        try {
+            index = Integer.parseInt(path[0]);
+            if (index == 0) {
+                path = Arrays.copyOfRange(path, 1, path.length);
+            } else {
+                index -= 1;
+                if (index == 0) {
+                    path = Arrays.copyOfRange(path, 1, path.length);
+                } else {
+                    path[0] = Integer.toString(index);
+                }
+            }
+        } catch (NumberFormatException e) {
+        }
+
+        // Test for and skip past these forms:
+        // <!-- ... -->
+        // <! ... >
+        // <![ ... ]]>
+        // <? ... ?>
+        // Report errors for these forms:
+        // <>
+        // <=
+        // <<
+
+        token = x.nextToken();
+
+        // <!
+
+        if (token == BANG) {
+            c = x.next();
+            if (c == '-') {
+                if (x.next() == '-') {
+                    x.skipPast("-->");
+                    return false;
+                }
+                x.back();
+            } else if (c == '[') {
+                token = x.nextToken();
+                if ("CDATA".equals(token)) {
+                    if (x.next() == '[') {
+                        string = x.nextCDATA();
+                        if (string.length() > 0) {
+                            context.accumulate(config.getcDataTagName(), string);
+                        }
+                        return false;
+                    }
+                }
+                throw x.syntaxError("Expected 'CDATA['");
+            }
+            i = 1;
+            do {
+                token = x.nextMeta();
+                if (token == null) {
+                    throw x.syntaxError("Missing '>' after '<!'.");
+                } else if (token == LT) {
+                    i += 1;
+                } else if (token == GT) {
+                    i -= 1;
+                }
+            } while (i > 0);
+            return false;
+        } else if (token == QUEST) {
+
+            // <?
+            x.skipPast("?>");
+            return false;
+        } else if (token == SLASH) {
+
+            // Close tag </
+
+            token = x.nextToken();
+            if (name == null) {
+                throw x.syntaxError("Mismatched close tag " + token);
+            }
+            if (!token.equals(name)) {
+                throw x.syntaxError("Mismatched " + name + " and " + token);
+            }
+            if (x.nextToken() != GT) {
+                throw x.syntaxError("Misshaped close tag");
+            }
+            return true;
+
+        } else if (token instanceof Character) {
+            throw x.syntaxError("Misshaped tag");
+
+            // Open tag <
+
+        } else {
+            tagName = (String) token;
+            if (tagName.equals(path0)) {
+                path = Arrays.copyOfRange(path, 1, path.length);
+                if (path.length > 0) {
+                    path0 = path[0];
+                    int index0 = -1;
+                    int arrayLength = -1;
+                    // count the number of existing objects to determine if this one is the one to be replaced
+                    try {
+                        index0 = Integer.parseInt(path0);
+                        try {
+                            if (context.has(tagName)) {
+                                Object arrayValue = context.get(tagName);
+
+                                if (arrayValue instanceof JSONObject) {
+                                    JSONObject object = (JSONObject) arrayValue;
+                                    arrayLength = object.length();
+                                } else if (arrayValue instanceof JSONArray) {
+                                    JSONArray jsonArray = (JSONArray) arrayValue;
+                                    arrayLength = jsonArray.length();
+                                }
+                            }
+                        } catch (JSONException ignored) {}
+                        if ((index0 == 0 && !replacement.isEmpty() )|| (arrayLength == index0 && index0 != -1)) {
+                            if (context.isEmpty()) {
+                                for (Map.Entry<String, Object> entry : replacement.entrySet()) {
+                                    context.put(entry.getKey(), entry.getValue());
+                                }
+                            } else {
+                                // avoid having {array:{object A}, {array:{sub object}}}
+                                JSONObject subObj = replacement.getJSONObject(tagName);
+                                context.accumulate(tagName, subObj);
+                            }
+                            replacement.clear();
+                            x.skipPast("/" + tagName + ">");
+                            return false;
+                        }
+                    } catch (NumberFormatException ignored) {}
+                } else {
+                    if (!replacement.isEmpty()) {
+                        for (Map.Entry<String, Object> entry : replacement.entrySet()) {
+                            context.put(entry.getKey(), entry.getValue());
+                        }
+                        replacement.clear();
+                        x.skipPast("/" + tagName + ">");
+                        return false;
+                    }
+                }
+            }
+            token = null;
+            jsonObject = new JSONObject();
+            boolean nilAttributeFound = false;
+            xmlXsiTypeConverter = null;
+            for (;;) {
+                if (token == null) {
+                    token = x.nextToken();
+                }
+                // attribute = value
+                if (token instanceof String) {
+                    string = (String) token;
+                    token = x.nextToken();
+                    if (token == EQ) {
+                        token = x.nextToken();
+                        if (!(token instanceof String)) {
+                            throw x.syntaxError("Missing value");
+                        }
+
+                        if (config.isConvertNilAttributeToNull()
+                                && NULL_ATTR.equals(string)
+                                && Boolean.parseBoolean((String) token)) {
+                            nilAttributeFound = true;
+                        } else if(config.getXsiTypeMap() != null && !config.getXsiTypeMap().isEmpty()
+                                && TYPE_ATTR.equals(string)) {
+                            xmlXsiTypeConverter = config.getXsiTypeMap().get(token);
+                        } else if (!nilAttributeFound) {
+                            jsonObject.accumulate(string,
+                                    config.isKeepStrings()
+                                            ? ((String) token)
+                                            : stringToValue((String) token));
+                        }
+                        token = null;
+                    } else {
+                        jsonObject.accumulate(string, "");
+                    }
+
+
+                } else if (token == SLASH) {
+                    // Empty tag <.../>
+                    if (x.nextToken() != GT) {
+                        throw x.syntaxError("Misshaped tag");
+                    }
+                    if (config.getForceList().contains(tagName)) {
+                        // Force the value to be an array
+                        if (nilAttributeFound) {
+                            context.append(tagName, JSONObject.NULL);
+                        } else if (jsonObject.length() > 0) {
+                            context.append(tagName, jsonObject);
+                        } else {
+                            context.put(tagName, new JSONArray());
+                        }
+                    } else {
+                        if (nilAttributeFound) {
+                            context.accumulate(tagName, JSONObject.NULL);
+                        } else if (jsonObject.length() > 0) {
+                            context.accumulate(tagName, jsonObject);
+                        } else {
+                            context.accumulate(tagName, "");
+                        }
+                    }
+                    return false;
+
+                } else if (token == GT) {
+                    // Content, between <...> and </...>
+                    for (;;) {
+                        token = x.nextContent();
+                        if (token == null) {
+                            if (tagName != null) {
+                                throw x.syntaxError("Unclosed tag " + tagName);
+                            }
+                            return false;
+                        } else if (token instanceof String) {
+                            string = (String) token;
+                            if (string.length() > 0) {
+                                if(xmlXsiTypeConverter != null) {
+                                    jsonObject.accumulate(config.getcDataTagName(),
+                                            stringToValue(string, xmlXsiTypeConverter));
+                                } else {
+                                    jsonObject.accumulate(config.getcDataTagName(),
+                                            config.isKeepStrings() ? string : stringToValue(string));
+                                }
+                            }
+
+                        } else if (token == LT) {
+                            // Nested element
+                            if (currentNestingDepth == config.getMaxNestingDepth()) {
+                                throw x.syntaxError("Maximum nesting depth of " + config.getMaxNestingDepth() + " reached");
+                            }
+                            boolean parseResult;
+                            if (path.length == 0) {
+                                parseResult = parse(x, jsonObject, tagName, config, 0);
+                            } else {
+                                parseResult = parse(x, path, jsonObject, tagName, config, currentNestingDepth + 1, replacement);
+                            }
+
+                            if (parseResult) {
+                                if (config.getForceList().contains(tagName)) {
+                                    // Force the value to be an array
+                                    if (jsonObject.length() == 0) {
+                                        context.put(tagName, new JSONArray());
+                                    } else if (jsonObject.length() == 1
+                                            && jsonObject.opt(config.getcDataTagName()) != null) {
+                                        context.append(tagName, jsonObject.opt(config.getcDataTagName()));
+                                    } else {
+                                        context.append(tagName, jsonObject);
+                                    }
+                                } else {
+                                    if (jsonObject.length() == 0) {
+                                        context.accumulate(tagName, "");
+                                    } else if (jsonObject.length() == 1
+                                            && jsonObject.opt(config.getcDataTagName()) != null) {
+                                        context.accumulate(tagName, jsonObject.opt(config.getcDataTagName()));
+                                    } else {
+                                        context.accumulate(tagName, jsonObject);
+                                    }
+                                }
+                                return false;
+                            }
+                        }
+                    }
+                } else {
+                    throw x.syntaxError("Misshaped tag");
+                }
+            }
+        }
+    }
+
     /**
      * This method tries to convert the given string value to the target object
      * @param string String to convert
@@ -875,6 +1173,12 @@ public class XML {
         return jo;
     }
 
+    /*
+     * @param reader The XML source reader.
+     * @param path Given path to a sub-object
+     * @return The sub JSONObject led by the path, from the structured data from the XML string.
+            * Or an empty JSONObject if path or XML is invalid
+     */
     public static JSONObject toJSONObject(Reader reader, JSONPointer path) throws JSONException {
         String[] pathArray = path.toString().split("/");
         pathArray = Arrays.copyOfRange(pathArray, 1, pathArray.length); // first element is empty
@@ -895,6 +1199,33 @@ public class XML {
         }
         return jo;
     }
+
+    /*
+     * @param reader The XML source reader.
+     * @param path Given path to a sub-object
+     * @param replacement The replacement JSONObject
+     * @return JSONObject with sub object replaced by the replacement.
+     * Or an empty JSONObject if XML is invalid
+     * Or the original object if path not found
+     */
+    public static JSONObject toJSONObject(Reader reader, JSONPointer path, JSONObject replacement) throws JSONException {
+        String[] pathArray = path.toString().split("/");
+        pathArray = Arrays.copyOfRange(pathArray, 1, pathArray.length); // first element is empty
+        JSONObject jo = new JSONObject();
+        XMLTokener x = new XMLTokener(reader);
+        while (x.more()) {
+            x.skipPast("<");
+            if (x.more()) {
+                try {
+                    parse(x, pathArray, jo, null, XMLParserConfiguration.ORIGINAL, 0, replacement);
+                } catch (JSONException e) {
+                    return new JSONObject();
+                }
+            }
+        }
+        return jo;
+    }
+
 
     /**
      * Convert a well-formed (but not necessarily valid) XML string into a
